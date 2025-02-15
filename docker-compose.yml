@@ -11,18 +11,29 @@ services:
     environment:
       - MILVUS_CACHE_NODE_MAX_MEMORY=4GB
       - MILVUS_LOG_LEVEL=debug
+    deploy:
+      resources:
+        limits:
+          memory: 8GB
 
   fastapi-app:
     container_name: fastapi-app
     build: .
     restart: always
     ports:
-      - "8001:8001"  # Ensure it matches your FastAPI app port
+      - "8001:8001"
     depends_on:
       - milvus
     environment:
       - MILVUS_HOST=milvus
       - MILVUS_PORT=19530
+    volumes:
+      - fastapi_data:/app/data 
+    deploy:
+      resources:
+        limits:
+          memory: 4GB  
 
 volumes:
   milvus_data:
+  fastapi_data:  
