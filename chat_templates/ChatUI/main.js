@@ -233,7 +233,7 @@ async function sendMessage() {
 
         // Send request to the FastAPI backend
         try {
-            const response = await fetch('http://127.0.0.1:8001/chat', {
+            const response = await fetch('http://52.5.167.111:8001/chat', {
                 method: 'POST',
                 headers: {
                     'Accept': 'application/json',
@@ -328,7 +328,7 @@ async function handleFileSelected(event) {
         formData.append("files", file);  // "files" matches FastAPI's parameter
 
         try {
-            const response = await fetch("http://127.0.0.1:8001/upload", {
+            const response = await fetch("http://52.5.167.111:8001/upload", {
                 method: "POST",
                 body: formData
             });
