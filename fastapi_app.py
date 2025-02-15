@@ -36,10 +36,19 @@ def initialize_settings():
 
 initialize_settings()
 
-# Connect to Milvus Vector Store
-vector_store = MilvusVectorStore(host="52.5.167.111", port=19530, dim=1024)
-storage_context = StorageContext.from_defaults(vector_store=vector_store)
-index = None  # Will be initialized when documents are uploaded
+from pymongo import MongoClient
+from langchain.vectorstores import MongoDBAtlas
+from langchain.embeddings import OpenAIEmbeddings
+
+# MongoDB Atlas Connection
+MONGO_URI = os.getenv("MONGO_URI", "your-mongodb-atlas-uri")
+client = MongoClient(MONGO_URI)
+db = client["your_database_name"]
+collection = db["your_collection_name"]
+
+# Initialize MongoDB Atlas Vector Store
+embedding_model = OpenAIEmbeddings()
+vector_store = MongoDBAtlas(collection, embedding_model)
 
 class QueryRequest(BaseModel):
     query: str
@@ -47,13 +56,14 @@ class QueryRequest(BaseModel):
 
 @app.post("/chat")
 async def chat(request: QueryRequest):
-    global index
-    if index is None:
-        return {"error": "Index is not initialized. Upload documents first."}  
     try:
-        query_engine = index.as_query_engine(similarity_top_k=20, streaming=False)
-        response = query_engine.query(request.query)
-        return {"response": response.response}
+        results = vector_store.similarity_search(request.query, k=5)  # Retrieve top 5 similar documents
+        if not results:
+            return {"response": "No relevant context found."}
+
+        response_text = results[0].page_content  # Extract best match
+        return {"response": response_text}
+
     except Exception as e:
         logging.exception("Error during query execution")
         return {"error": str(e)}
@@ -85,30 +95,24 @@ async def upload_documents(files: List[UploadFile] = File(...)):
 #new_upload
 @app.post("/upload")
 async def upload_documents(files: List[UploadFile] = File(...)):
-    global index
     set_environment_variables()
 
     try:
         logging.info(f"Uploading files: {[file.filename for file in files]}")
 
-        # Process the uploaded files
+        # Process files into documents
         documents = await load_multimodal_data(files)
 
-        if index is None:
-            # Initialize index if it's the first upload
-            index = VectorStoreIndex.from_documents(documents, storage_context=storage_context)
-        else:
-            # Append new documents instead of replacing index
-            index = index + VectorStoreIndex.from_documents(documents, storage_context=storage_context)
-            logging.info(f"Indexed documents: {[doc.metadata['source'] for doc in documents]}")
+        # Store documents in MongoDB Atlas Vector Store
+        vector_store.add_documents(documents)
 
-        logging.info(f"Current index size: {len(index.docstore)}")
+        logging.info(f"Documents stored in MongoDB Atlas: {[doc.metadata['source'] for doc in documents]}")
+        return {"message": "Documents uploaded and indexed successfully in MongoDB Atlas"}
 
-        return {"message": "Documents uploaded and indexed successfully"}
-    
     except Exception as e:
         logging.error(f"Error during file processing: {e}")
         return {"error": str(e)}
+
 
 
 '''@app.get("/")
