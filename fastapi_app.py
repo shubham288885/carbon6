@@ -37,7 +37,7 @@ def initialize_settings():
 initialize_settings()
 
 # Connect to Milvus Vector Store
-vector_store = MilvusVectorStore(host="127.0.0.1", port=19530, dim=1024)
+vector_store = MilvusVectorStore(host="52.5.167.111", port=19530, dim=1024)
 storage_context = StorageContext.from_defaults(vector_store=vector_store)
 index = None  # Will be initialized when documents are uploaded
 
